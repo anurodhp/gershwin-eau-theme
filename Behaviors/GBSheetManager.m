@@ -55,6 +55,7 @@
   NSTimeInterval animationDuration;
   NSSize savedMinSize;
   BOOL savedAutoresizes;
+  NSSize savedContentSize;
 }
 @end
 
@@ -241,9 +242,16 @@ static void GBSheetStopAnimation(GBSheetSession *s)
   /* The last tick rarely lands on the full height.  Growing the rest of the
    * way with autoresizing already back on would shift every top-anchored
    * subview (alert icon and title) up by the missing pixels, so the sheet
-   * reaches its full size first, exactly as it was laid out. */
+   * reaches its full size first, and the subviews then follow only the
+   * difference to the size they had before the slide (the frame landing on
+   * whole device pixels under a scale factor), as an unanimated window
+   * would. */
   [s->sheet setFrame:GBSheetTargetFrame(s) display:NO];
   [[s->sheet contentView] setAutoresizesSubviews:s->savedAutoresizes];
+  if (s->savedAutoresizes
+      && !NSEqualSizes([[s->sheet contentView] frame].size, s->savedContentSize)) {
+    [[s->sheet contentView] resizeSubviewsWithOldSize:s->savedContentSize];
+  }
   [s->sheet display];
 }
 
@@ -314,6 +322,7 @@ static void GBSheetShow(GBSheetSession *s)
      * the sheet from the top, so its bottom edge appears first right
      * under the titlebar - the sheet seems to slide out from under it. */
     s->savedAutoresizes = [[sheet contentView] autoresizesSubviews];
+    s->savedContentSize = [[sheet contentView] frame].size;
     s->savedMinSize = [sheet minSize];
     [[sheet contentView] setAutoresizesSubviews:NO];
     [sheet setMinSize:NSMakeSize(1, 1)];
