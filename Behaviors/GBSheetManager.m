@@ -237,9 +237,14 @@ static void GBSheetStopAnimation(GBSheetSession *s)
   [s->animationTimer invalidate];
   s->animationTimer = nil;
   s->animationStart = nil;
-  [[s->sheet contentView] setAutoresizesSubviews:s->savedAutoresizes];
   [s->sheet setMinSize:s->savedMinSize];
-  [s->sheet setFrame:GBSheetTargetFrame(s) display:YES];
+  /* The last tick rarely lands on the full height.  Growing the rest of the
+   * way with autoresizing already back on would shift every top-anchored
+   * subview (alert icon and title) up by the missing pixels, so the sheet
+   * reaches its full size first, exactly as it was laid out. */
+  [s->sheet setFrame:GBSheetTargetFrame(s) display:NO];
+  [[s->sheet contentView] setAutoresizesSubviews:s->savedAutoresizes];
+  [s->sheet display];
 }
 
 void GBSheetPlace(NSWindow *sheet)
