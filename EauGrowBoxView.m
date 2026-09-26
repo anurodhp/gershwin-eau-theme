@@ -157,6 +157,18 @@ static const NSInteger EauGrowBoxViewTag = 0xEA0B0;
   // (NSScroller scrollerWidth queries theme, causing issues during GSThemeDidActivateNotification)
   CGFloat size = METRICS_GROW_BOX_SIZE;
 
+  /* Whole device pixels, as autoresizing leaves the box once the window
+   * frame settles: a box created on an already settled window (a panel
+   * shown again after being a sheet) would otherwise draw over fractional
+   * pixels under a scale factor and look different. */
+  if ([contentView window] != nil)
+    {
+      NSSize px = [contentView convertSize: NSMakeSize(size, size) toView: nil];
+      px.width = ceil(fabs(px.width) - 0.001);
+      px.height = ceil(fabs(px.height) - 0.001);
+      size = fabs([contentView convertSize: px fromView: nil].width);
+    }
+
   // Calculate position in bottom-right corner
   // Handle both flipped and non-flipped content views
   NSRect contentBounds = [contentView bounds];
