@@ -648,6 +648,19 @@ BOOL GBSheetEnd(NSWindow *sheet, NSInteger returnCode)
   [_wv setBackgroundColor:background];
   [_wv setTitle:[self title]];
   [_wv setDocumentEdited:[self isDocumentEdited]];
+  /* A fresh decoration view starts out drawing the key titlebar (input
+   * state 0); a panel given its titlebar back after a sheet has usually
+   * resigned key already and would keep that look the next time it is
+   * shown without becoming key. */
+  if ([self isKeyWindow]) {
+    [_wv setInputState:GSTitleBarKey];
+  }
+  else if ([self isMainWindow]) {
+    [_wv setInputState:GSTitleBarMain];
+  }
+  else {
+    [_wv setInputState:GSTitleBarNormal];
+  }
 
   if (num != 0) {
     GSDisplayServer *srv = GSServerForWindow(self);
