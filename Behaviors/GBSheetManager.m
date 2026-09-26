@@ -602,6 +602,8 @@ BOOL GBSheetEnd(NSWindow *sheet, NSInteger returnCode)
 {
   NSView *content = [self contentView];
   NSResponder *responder = [self firstResponder];
+  NSControl *editedControl = nil;
+  NSRange editedSelection = NSMakeRange(0, 0);
   NSColor *background = [self backgroundColor];
   NSRect oldFrame;
   NSRect contentRect;
@@ -613,6 +615,12 @@ BOOL GBSheetEnd(NSWindow *sheet, NSInteger returnCode)
 
   if (mask == _styleMask) {
     return [self frame];
+  }
+
+  if ([responder isKindOfClass:[NSTextView class]] && [(NSTextView *)responder isFieldEditor]
+      && [[(NSTextView *)responder delegate] isKindOfClass:[NSControl class]]) {
+    editedControl = (NSControl *)[(NSTextView *)responder delegate];
+    editedSelection = [(NSTextView *)responder selectedRange];
   }
 
   oldFrame = [self frame];
@@ -690,7 +698,22 @@ BOOL GBSheetEnd(NSWindow *sheet, NSInteger returnCode)
   [self setFrame:frame display:NO];
   [content setAutoresizesSubviews:contentAutoresizes];
 
-  if ([responder isKindOfClass:[NSView class]] && [(NSView *)responder window] == self) {
+  if (editedControl != nil && [editedControl window] == self) {
+    /* Handing focus straight back to the field editor leaves it detached
+     * from the control it was editing (no selection, no focus look);
+     * restart the edit through the control and put the selection back. */
+    if ([editedControl respondsToSelector:@selector(selectText:)]) {
+      [(id)editedControl selectText:nil];
+    }
+    else {
+      [self makeFirstResponder:editedControl];
+    }
+    NSText *editor = [editedControl currentEditor];
+    if (editor != nil && NSMaxRange(editedSelection) <= [[editor string] length]) {
+      [editor setSelectedRange:editedSelection];
+    }
+  }
+  else if ([responder isKindOfClass:[NSView class]] && [(NSView *)responder window] == self) {
     [self makeFirstResponder:responder];
   }
   [_wv setNeedsDisplay:YES];
