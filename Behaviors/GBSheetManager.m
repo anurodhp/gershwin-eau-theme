@@ -600,6 +600,7 @@ BOOL GBSheetEnd(NSWindow *sheet, NSInteger returnCode)
   GSWindowDecorationView *decoration;
   NSUInteger oldMask = _styleMask;
   int num = (int)[self windowNumber];
+  BOOL contentAutoresizes;
 
   if (mask == _styleMask) {
     return [self frame];
@@ -616,6 +617,14 @@ BOOL GBSheetEnd(NSWindow *sheet, NSInteger returnCode)
     _styleMask = oldMask;
     return [self frame];
   }
+
+  /* The content rect stays where it was, so nothing inside has to move.
+   * Letting the reinstall and the new frame autoresize the subviews anyway
+   * would snap fractional frames (alert buttons, title) to device pixels
+   * under a scale factor, and the sheet would lay out differently from the
+   * same panel shown on its own. */
+  contentAutoresizes = [content autoresizesSubviews];
+  [content setAutoresizesSubviews:NO];
 
   /* Removing the content view makes the old decoration view clear the
    * window's (unretained) content view pointer; setContentView: below
@@ -657,6 +666,7 @@ BOOL GBSheetEnd(NSWindow *sheet, NSInteger returnCode)
     [self setMaxSize:maxSize];
   }
   [self setFrame:frame display:NO];
+  [content setAutoresizesSubviews:contentAutoresizes];
 
   if ([responder isKindOfClass:[NSView class]] && [(NSView *)responder window] == self) {
     [self makeFirstResponder:responder];
