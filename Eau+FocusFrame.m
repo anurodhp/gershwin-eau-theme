@@ -218,8 +218,12 @@ static EauFocusOverlay *eauOverlayForWindow(NSWindow *win)
   /* Skip the rest when the ring is unchanged: the pulsing default button
    * redraws every animation frame, but its focus ring geometry is identical, so
    * there is nothing new to paint.  This keeps the per-frame cost near zero. */
+  /* The overlay must still cover the whole content view: one attached while
+   * the content view was not autoresizing its subviews (a sheet sliding out
+   * starts one pixel high) would otherwise keep clipping the ring. */
   if ([ov ringPath] != nil && [ov focusedView] == view
-      && NSEqualRects(oldBounds, newBounds))
+      && NSEqualRects(oldBounds, newBounds)
+      && NSEqualRects([ov frame], [cv bounds]))
     {
       return;
     }
