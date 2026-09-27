@@ -154,7 +154,20 @@ static NSDictionary *titleTextAttributes[3] = {nil, nil, nil};
       BOOL useMiddleEllipsis = (leftGap < minGap || rightGap < minGap);
 
       if (useMiddleEllipsis) {
-        // Draw with middle ellipsis — no centering, just fill the available rect
+        // Draw with middle ellipsis: center over full titlebar, clamp into allowed area
+        // Allowed area: workRect inset by minGap on both sides
+        CGFloat minGap = 24.0 * GSWScaleFactor();
+        NSRect allowedArea = NSInsetRect(workRect, minGap, 0);
+
+        // Center over the full titlebar width
+        CGFloat fullMidX = NSMidX(titleRect);
+        CGFloat centeredX = fullMidX - titleSize.width / 2.0;
+
+        // Clamp into allowed area
+        CGFloat allowedMinX = NSMinX(allowedArea);
+        CGFloat allowedMaxX = NSMaxX(allowedArea) - titleSize.width;
+        CGFloat titleX = MAX(allowedMinX, MIN(centeredX, allowedMaxX));
+
         NSMutableParagraphStyle *p = [[titleTextAttributes[attrIndex] objectForKey:NSParagraphStyleAttributeName] mutableCopy];
         [p setLineBreakMode:NSLineBreakByTruncatingMiddle];
         [p setAlignment:NSCenterTextAlignment];
@@ -162,9 +175,9 @@ static NSDictionary *titleTextAttributes[3] = {nil, nil, nil};
         NSMutableDictionary *truncAttrs = [titleTextAttributes[attrIndex] mutableCopy];
         [truncAttrs setObject:p forKey:NSParagraphStyleAttributeName];
 
-        workRect.origin.y = NSMidY(workRect) - titleSize.height / 2;
-        workRect.size.height = titleSize.height;
-        [title drawInRect:workRect withAttributes:truncAttrs];
+        NSRect drawRect = NSMakeRect(titleX, NSMidY(workRect) - titleSize.height / 2,
+                                     titleSize.width, titleSize.height);
+        [title drawInRect:drawRect withAttributes:truncAttrs];
       } else {
         if (titleSize.width <= workRect.size.width)
           {
