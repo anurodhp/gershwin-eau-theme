@@ -154,9 +154,9 @@ static NSDictionary *titleTextAttributes[3] = {nil, nil, nil};
       BOOL useMiddleEllipsis = (leftGap < minGap || rightGap < minGap);
 
       if (useMiddleEllipsis) {
-        // Draw with middle ellipsis: center over full titlebar, clamp into allowed area
-        // Allowed area: workRect inset by minGap on both sides
-        CGFloat minGap = 24.0 * GSWScaleFactor();
+        /* Too close to a button: keep the title centered over the whole
+         * titlebar but clamped minGap away from the buttons; only a title too
+         * wide for that area is middle-truncated across all of it. */
         NSRect allowedArea = NSInsetRect(workRect, minGap, 0);
 
         // Center over the full titlebar width
@@ -177,6 +177,11 @@ static NSDictionary *titleTextAttributes[3] = {nil, nil, nil};
 
         NSRect drawRect = NSMakeRect(titleX, NSMidY(workRect) - titleSize.height / 2,
                                      titleSize.width, titleSize.height);
+        if (titleSize.width > NSWidth(allowedArea))
+          {
+            drawRect.origin.x = NSMinX(allowedArea);
+            drawRect.size.width = NSWidth(allowedArea);
+          }
         [title drawInRect:drawRect withAttributes:truncAttrs];
       } else {
         if (titleSize.width <= workRect.size.width)

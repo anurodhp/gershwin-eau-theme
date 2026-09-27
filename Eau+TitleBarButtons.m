@@ -638,9 +638,14 @@ BOOL EauTitleBarButtonStyleIsOrb(void)
         NSParagraphStyleAttributeName: p
     };
 
-    // Build draw rect: center vertically, position horizontally as calculated
+    // A title that fits keeps its own width at the clamped position; one that
+    // does not gets the whole allowed area, so the middle ellipsis can apply.
     NSRect drawRect = NSMakeRect(titleX, NSMidY(rect) - titleSize.height / 2.0,
                                  titleSize.width, titleSize.height);
+    if (titleSize.width > NSWidth(allowedArea)) {
+        drawRect.origin.x = NSMinX(allowedArea);
+        drawRect.size.width = NSWidth(allowedArea);
+    }
 
     [title drawInRect:drawRect withAttributes:drawAttrs];
 }
