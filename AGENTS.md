@@ -72,7 +72,7 @@ the process and must be switched on and off with the theme itself:
 - Format per `.clang-format` (2-space indent, Stroustrup braces, 100 columns).
 
 ## Verification
-- Unit tests (gnustep-make TestFramework): `Tests/` (Eau code) and `Behaviors/Tests/` (behavior code) - `gmake -C <dir>`, run `./obj/t_*`; some need an X display, and `t_ButtonSpaceKey` also `-GSTheme <abs path>/Eau.theme`. Manual tools under `Test/` (`alerttest`, `dialogtest`, `guiDrawing` GORM sample, `EauTest` showcase) linking `-lgnustep-gui`; scripted sheet test in `Behaviors/Test/SheetTest` (headless: Xvfb + xdotool). Real verification is running the installed theme against system apps (e.g. `/System/Applications/LoginWindow.app`), not hand-written smoke tests.
+- Unit tests (gnustep-make TestFramework): `Tests/` (Eau code) and `Behaviors/Tests/` (behavior code) - `gmake -C <dir>`, run `./obj/t_*`; some need an X display, and `t_ButtonSpaceKey` also `-GSTheme <abs path>/Eau.theme`. Manual tools under `Test/` (`alerttest`, `dialogtest`, `guiDrawing` GORM sample, `EauTest` showcase) linking `-lgnustep-gui`; scripted sheet test in `Behaviors/Test/SheetTest` (headless: Xvfb + xdotool). Pixel A/B test against a reference revision: `Test/ABScreenshots/ab-compare.sh [-r origin/dev] [-s "1 1.4"]` - any visual change must come out 0 px against `dev` unless intended (see its README). Real verification is running the installed theme against system apps (e.g. `/System/Applications/LoginWindow.app`), not hand-written smoke tests.
 - Before finishing: clean build with no warnings (root, `Tests/`, `Behaviors/Tests/`), then review `git diff`.
 
 ## Git
