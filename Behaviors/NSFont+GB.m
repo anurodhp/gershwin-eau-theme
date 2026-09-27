@@ -127,6 +127,17 @@ static NSFont *GBFallbackFont(void)
  * closest match happens to pick. */
 + (NSFont *)gb_fontOrDefault:(NSFont *)font size:(CGFloat)size weight:(NSInteger)weight
 {
+  // A caller asking for "the default size" (systemFontOfSize:0 and friends)
+  // has already had that 0 resolved by the original implementation into
+  // -[font pointSize] before we ever see it; rebuilding the face below from
+  // a literal 0 would hand fontWithFamily:...size:/fontWithDescriptor:size:
+  // a different, more generic default (they do not know which role - system,
+  // control content, titlebar, ... - asked for 0) instead of the size that
+  // was actually resolved, so use the base font's own size whenever the
+  // caller did not name a positive one.
+  if (size <= 0.0)
+    size = [font pointSize];
+
   // Cache the resolved font per (family, weight, size): a menu rebuild creates
   // one NSMenuItemCell per item and each one re-runs fontconfig matching
   // (FcFontSort) here, which is what makes Menu.app's CPU spike while menus
