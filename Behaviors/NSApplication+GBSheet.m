@@ -49,11 +49,19 @@
     GBSheetBegin(sheet, docWindow, modalDelegate, didEndSelector, contextInfo, nil, NO);
     return;
   }
-  [self gb_beginSheet:sheet
-       modalForWindow:docWindow
-        modalDelegate:modalDelegate
-       didEndSelector:didEndSelector
-          contextInfo:contextInfo];
+  /* Its modal session is the sheet's own; GBAutoSheet.m must not attach
+   * it a second time. */
+  GBAutoSheetSetSuppressed(YES);
+  @try {
+    [self gb_beginSheet:sheet
+         modalForWindow:docWindow
+          modalDelegate:modalDelegate
+         didEndSelector:didEndSelector
+            contextInfo:contextInfo];
+  }
+  @finally {
+    GBAutoSheetSetSuppressed(NO);
+  }
 }
 
 - (void)gb_endSheet:(NSWindow *)sheet

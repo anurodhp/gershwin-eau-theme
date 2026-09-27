@@ -59,6 +59,33 @@ BOOL GBSheetDocumentWindowWillClose(NSWindow *window, id sender);
 /* Re-placement after the parent moved or resized. */
 void GBSheetPlace(NSWindow *sheet);
 
+/* Synchronous dialogs as sheets (GBAutoSheet.m).  User default; NO keeps
+ * every runModal dialog app-modal and centered.  Also off when
+ * GBWindowModalSheets is NO. */
+#define GBAutoSheetsDefault @"GBAutoSheets"
+
+BOOL GBAutoSheetsEnabled(void);
+
+/* The window dialog would be attached to if its modal session started now,
+ * or nil when it stays an app-modal, centered panel. */
+NSWindow *GBAutoSheetParentFor(NSWindow *dialog);
+
+/* Brackets a close in progress (-performClose:, a document's close check):
+ * a dialog run meanwhile is about that window.  window may be nil. */
+void GBAutoSheetPushClosingWindow(NSWindow *window);
+void GBAutoSheetPopClosingWindow(void);
+
+/* Brackets code that runs a modal session of its own for a sheet
+ * (libs-gui's blocking -beginSheet:...), which must not be attached twice. */
+void GBAutoSheetSetSuppressed(BOOL suppressed);
+
+/* -makeKeyAndOrderFront: by the application; during -terminate: this names
+ * the document a following question is about. */
+void GBAutoSheetWindowMadeKey(NSWindow *window);
+
+/* NSAlert's panel, whatever class the theme built it from. */
+void GBAutoSheetMarkAlertPanel(NSWindow *panel);
+
 /* X11 window-manager hints (GBSheetX11.m); no-ops on other backends. */
 void GBSheetX11Attach(NSWindow *sheet, NSWindow *parent);
 void GBSheetX11Detach(NSWindow *sheet);

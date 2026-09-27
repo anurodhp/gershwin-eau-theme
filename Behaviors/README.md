@@ -27,6 +27,7 @@ saying what should change there.
 | Submenu safe triangle | `GBMenuSafeTriangle*` |
 | Popup menu X11 window type | `GSDisplayServer+GB.m` |
 | Window-modal sheets (NSApp/NSWindow/NSAlert/NSSavePanel/NSDocument) | `GBSheet*`, `*+GBSheet.m` |
+| Synchronous dialogs (NSRunAlertPanel, `runModal`) shown as sheets | `GBAutoSheet.m` |
 | NSAlert runModal (main thread, focus, empty-alert guard, deferred panel teardown) | `NSAlert+GB.m` |
 | Default button (Return), button Space/Return keys | `NSWindow+GBDefaultButton.m`, `NSButton+GB`, `NSButtonCell+GB` |
 | Focus-ring visibility policy (show after Tab, hide after a click) | `NSWindow+GBFocusRing.m` |
@@ -44,7 +45,8 @@ User defaults (any domain, e.g. `defaults write NSGlobalDomain ...`):
 
 | Default | Type | Default value | Effect |
 |---|---|---|---|
-| `GBWindowModalSheets` | BOOL | YES | NO restores libs-gui's blocking, app-modal sheets |
+| `GBWindowModalSheets` | BOOL | YES | NO restores libs-gui's blocking, app-modal sheets (and turns `GBAutoSheets` off) |
+| `GBAutoSheets` | BOOL | YES | NO keeps every synchronous dialog an app-modal, centered panel |
 | `GBMenuSafeTriangleDelay` | seconds | 0.3 | How long the pointer may rest in the triangle toward an open submenu; 0 turns the triangle off |
 
 Files and environment:
@@ -63,6 +65,7 @@ declared in its own header; without it the bundle uses the fallback shown.
 | Header | Method | Fallback |
 |---|---|---|
 | `GBThemeHooks+Alert.h` | `-runModalForAlertPanel:result:` | `runModalForWindow:` on the panel |
+| `GBThemeHooks+Alert.h` | `-gbIsAlertPanel:` | only GSAlertPanel and NSAlert's panels count as alerts |
 | `GBThemeHooks+DefaultButton.h` | `-gbDefaultButtonCellChanged:forWindow:` | nothing (no pulsing) |
 | `GBThemeHooks+FocusRing.h` | `-gbKeyboardFocusVisibilityChanged:inWindow:` | nothing |
 | `GBThemeHooks+GWDialog.h` | `-gbLayoutGWDialog:` | GWDialog's own layout |
@@ -71,7 +74,45 @@ declared in its own header; without it the bundle uses the fallback shown.
 
 `+[GBBehaviors playSystemSound:]` is available to themes that trigger a
 sound from drawing code (Eau's progress-bar completion sound); look it up
-with `NSClassFromString(@"GBBehaviors")`.
+with `NSClassFromString(@"GBBehaviors")`.  So is
+`+[GBBehaviors willRunModalWindowAsSheet:]`: a theme whose alert panel
+centers and raises itself before `-runModalForWindow:` (Eau's
+`EauAlertPanel`) skips that when it answers YES, or the dialog would first
+flash up in the middle of the screen.
+
+## Synchronous dialogs as sheets
+
+Most GNUstep applications ask their questions with a blocking call and
+continue on the next line: `NSRunAlertPanel` from `-windowShouldClose:`,
+`-[NSAlert runModal]`, `-[NSSavePanel runModal]`.  `GBAutoSheet.m` shows
+such a dialog as a sheet on the window it is about, without source changes.
+It hooks the modal session itself (`-beginModalSessionForWindow:` /
+`-endModalSession:`): the dialog is attached through the same code as the
+asynchronous sheets (placement, borderless style, window-manager hints,
+slide, parent state) before the session starts, and restored when it ends,
+so the call still blocks and returns the same code.
+
+- Dialogs: alert panels (GSAlertPanel, NSAlert's panel, or a theme's
+  panel recognised by `-gbIsAlertPanel:`), NSSavePanel but not NSOpenPanel
+  (the HIG keeps Open app-modal), NSPageLayout and NSPrintPanel.  Other
+  modal panels are unchanged.
+- Parent, in order: the `docWindow` of `-runModalForWindow:relativeToWindow:`;
+  the window whose close is in progress (`-performClose:`, which covers the
+  close button, the WM close and Command-W, or `-[NSDocument
+  canCloseDocument]`); else the key window; else, with no key window, the
+  main window.  It must be visible, on screen, not miniaturized, titled, not
+  an NSPanel, at the normal level, without a sheet, and not the dialog.
+- While `-terminate:` runs, only a closing window or a window the
+  application itself made key (`-makeKeyAndOrderFront:`, as when reviewing
+  unsaved documents one by one) is a parent: an application-wide question
+  ("You have unsaved documents") stays centered.
+- No sheet when another modal session runs, the application is inactive,
+  no parent qualifies (launch-time alerts), or the dialog belongs to
+  libs-gui's blocking `-beginSheet:` (kill switch).
+- Caveat: the session stays app-modal while the sheet is up.  Running it
+  window-modal would re-enter the application's event handling underneath
+  a call that expects nothing to change until it returns, so other windows
+  of the application wait, as they did before; only the look is a sheet.
 
 ## Window manager requirements for sheets
 
@@ -107,7 +148,8 @@ would, and other themes have no such fallback.
 Installing Eau (`gmake install` at the repository root) also builds and
 installs this bundle. `Tests/` holds unit tests (build with `gmake -C Tests`,
 run the tools in `Tests/obj/`; the window-filter test needs an X display);
-`Test/SheetTest` is a scripted GUI test for sheets (see its GNUmakefile).
+`Test/SheetTest` is a scripted GUI test for sheets, synchronous dialogs
+included (see its GNUmakefile; `-autosheets YES` runs only those).
 
 ## Known gaps
 
@@ -119,6 +161,8 @@ run the tools in `Tests/obj/`; the window-filter test needs an X display);
   decoration view while attached and its old one back afterwards.
 - Alert-panel keyboard handling (Esc, arrow and Tab focus) is still in
   Eau's `EauAlertPanel`, so other themes get libs-gui's.
+- A synchronous dialog shown as a sheet still blocks the whole application
+  (see "Synchronous dialogs as sheets").
 
 ## Conventions
 

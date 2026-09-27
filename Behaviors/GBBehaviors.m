@@ -4,6 +4,7 @@
  */
 
 #import "GBBehaviors.h"
+#import "GBSheet.h"
 #import "GBSound.h"
 
 @implementation GBBehaviors
@@ -23,6 +24,11 @@
 + (BOOL)playSystemSound:(NSString *)name
 {
   return GBPlaySystemSound(name);
+}
+
++ (BOOL)willRunModalWindowAsSheet:(NSWindow *)window
+{
+  return GBAutoSheetParentFor(window) != nil;
 }
 
 @end

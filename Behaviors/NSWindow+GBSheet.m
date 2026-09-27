@@ -381,7 +381,15 @@ static void GBAddMissing(Class cls, SEL sel, IMP imp, const char *types)
   if (GBSheetDocumentWindowWillClose(self, sender)) {
     return;
   }
-  [self gb_performClose:sender];
+  /* A question the close raises synchronously (a -windowShouldClose: that
+   * runs an alert) is about this window, whichever window is key. */
+  GBAutoSheetPushClosingWindow(self);
+  @try {
+    [self gb_performClose:sender];
+  }
+  @finally {
+    GBAutoSheetPopClosingWindow();
+  }
 }
 
 - (void)gb_performMiniaturize:(id)sender

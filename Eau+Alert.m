@@ -31,4 +31,11 @@
   [panel center];
 }
 
+/* NSRunAlertPanel's GSAlertPanel becomes an EauAlertPanel, which is not a
+ * GSAlertPanel subclass, so the behavior cannot tell it is an alert. */
+- (BOOL)gbIsAlertPanel:(NSWindow *)window
+{
+  return [window isKindOfClass:[EauAlertPanel class]];
+}
+
 @end

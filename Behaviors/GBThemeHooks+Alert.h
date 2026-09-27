@@ -18,4 +18,9 @@
  * vacates is never damaged.  Without the hook the panel is only centered. */
 - (void)prepareAlertPanelForDisplay:(NSWindow *)panel;
 
+/* YES when window is one of the theme's alert panels, so a synchronous
+ * alert of that class can become a sheet (GBAutoSheet.m).  Without the hook
+ * only GSAlertPanel and NSAlert's panels are recognised. */
+- (BOOL)gbIsAlertPanel:(NSWindow *)window;
+
 @end

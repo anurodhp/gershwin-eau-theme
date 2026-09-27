@@ -5,6 +5,7 @@
 
 #import <AppKit/AppKit.h>
 #import <objc/runtime.h>
+#import "GBSheet.h"
 #import "GBTheme.h"
 #import "GBThemeHooks+Window.h"
 
@@ -178,6 +179,7 @@ static void GBWindowWillOrderFront(NSWindow *window)
   GBWindowLog(@"makeKeyAndOrderFront", self);
   GBWindowWillOrderFront(self);
   [self gb_makeKeyAndOrderFront: sender];
+  GBAutoSheetWindowMadeKey(self);
 }
 
 - (void) gb_orderOut: (id)sender
