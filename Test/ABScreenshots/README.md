@@ -5,13 +5,25 @@ working tree (B), pixel for pixel, at any GSScaleFactor.
 
     ./ab-compare.sh                      # A = origin/dev, scales 1 and 1.4
     ./ab-compare.sh -r main -s "1 1.4 2" -o /tmp/ab
+    ./ab-compare.sh -d wm -s 1.25        # only the desktop's decoration mode
 
 It builds A in a temporary git worktree, builds B and the harness, then runs
-`abharness` under Xvfb (1600x1200, 96 dpi) once per side, scale and mode,
-serially. Each run loads that side's `Eau.theme` and, when the revision has
-one, its `Behaviors/GershwinBehaviors.bundle`. The report is
-`<out>/RESULTS.md`, with an A | B | diff image in `<out>/diff/` for every
-deviation. The exit status is the number of images that differ.
+`abharness` under Xvfb (1600x1200, 96 dpi) once per side, scale, decoration
+mode and capture mode, serially. Each run loads that side's `Eau.theme` and,
+when the revision has one, its `Behaviors/GershwinBehaviors.bundle`. The
+report is `<out>/RESULTS.md`, with an A | B | diff image in `<out>/diff/` for
+every deviation. The exit status is the number of images that differ.
+
+## Decoration modes (`-d`, default both)
+
+- `eau` - `-GSBackHandlesWindowDecorations NO`: Eau draws the titlebars, and
+  libs-gui loads the behaviors bundle through `GSAppKitUserBundles`.
+- `wm` - the Gershwin desktop's setup: `-GSBackHandlesWindowDecorations YES`
+  (the window manager decorates; Xvfb has none, so windows are captured
+  without titlebars) and no `GSAppKitUserBundles`, so Eau loads the bundle
+  itself from `Library/Bundles` of the run's private HOME, later in start-up
+  than libs-gui would. Window frames, content sizes at fractional scales and
+  the start-up order all differ from `eau`, so a mode can deviate alone.
 
 Needs: the GNUstep stack at `/System`, `xvfb-run`, ImageMagick (`import`,
 `compare`, `convert`, `montage`), `libX11` and `libXtst` at run time.

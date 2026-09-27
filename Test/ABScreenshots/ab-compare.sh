@@ -8,9 +8,12 @@
 # Xvfb at every requested GSScaleFactor, twice for A so harness noise shows
 # up as A-vs-A differences.  See README.md.
 #
-# usage: ab-compare.sh [-r REF] [-s "1 1.4 2"] [-o OUTDIR] [-k] [-S]
+# usage: ab-compare.sh [-r REF] [-s "1 1.4 2"] [-d "eau wm"] [-o OUTDIR] [-k] [-S]
 #   -r REF     reference revision (default origin/dev)
 #   -s SCALES  GSScaleFactor values (default "1 1.4")
+#   -d DECOS   window decorations: eau (Eau draws the titlebars) and/or wm
+#              (the window manager does, as on the Gershwin desktop)
+#              (default "eau wm")
 #   -o OUTDIR  where screenshots and the report go (default ./ab-out)
 #   -k         keep the reference worktree afterwards
 #   -S         leave GBAutoSheets on (by default both sides run with it off,
@@ -21,17 +24,19 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$HERE/../.." && pwd)
 REF=origin/dev
 SCALES="1 1.4"
+DECOS="eau wm"
 OUT="$PWD/ab-out"
 KEEP=0
 AUTOSHEETS=NO
-while getopts r:s:o:kS opt; do
+while getopts r:s:d:o:kS opt; do
   case $opt in
     r) REF=$OPTARG ;;
     s) SCALES=$OPTARG ;;
+    d) DECOS=$OPTARG ;;
     o) OUT=$OPTARG ;;
     k) KEEP=1 ;;
     S) AUTOSHEETS=YES ;;
-    *) sed -n '11,18p' "$0"; exit 64 ;;
+    *) sed -n '11,21p' "$0"; exit 64 ;;
   esac
 done
 case $OUT in /*) ;; *) OUT="$PWD/$OUT" ;; esac
@@ -72,15 +77,27 @@ build "$REPO" B
 build "$HERE" harness
 
 # One run: theme and behaviors bundle (if the revision has one) of tree $2.
+# deco eau: Eau draws the titlebars and libs-gui loads the bundle through
+# GSAppKitUserBundles.  deco wm: the Gershwin desktop's setup - the window
+# manager decorates (GSBackHandlesWindowDecorations YES, as in its
+# NSGlobalDomain) and, with no GSAppKitUserBundles, the theme loads the
+# bundle itself from a Library/Bundles directory (here the private HOME's),
+# later than libs-gui would.
 run()
 {
-  name=$1 tree=$2 scale=$3 quick=$4
+  name=$1 tree=$2 scale=$3 quick=$4 deco=$5
   dir="$OUT/runs/$name"
   mkdir -p "$dir/home"
-  set -- -GSTheme "$tree/Eau.theme" -GSBackHandlesWindowDecorations NO -GSScaleFactor "$scale" \
-    -GBAutoSheets "$AUTOSHEETS"
+  if [ $deco = wm ]; then decorations=YES; else decorations=NO; fi
+  set -- -GSTheme "$tree/Eau.theme" -GSBackHandlesWindowDecorations $decorations \
+    -GSScaleFactor "$scale" -GBAutoSheets "$AUTOSHEETS"
   if [ -d "$tree/Behaviors/GershwinBehaviors.bundle" ]; then
-    set -- "$@" -GSAppKitUserBundles "(\"$tree/Behaviors/GershwinBehaviors.bundle\")"
+    if [ $deco = wm ]; then
+      mkdir -p "$dir/home/Library/Bundles"
+      ln -s "$tree/Behaviors/GershwinBehaviors.bundle" "$dir/home/Library/Bundles/"
+    else
+      set -- "$@" -GSAppKitUserBundles "(\"$tree/Behaviors/GershwinBehaviors.bundle\")"
+    fi
   fi
   # A private HOME keeps the user's defaults out; C locale and UTC keep text
   # and dates identical between runs.
@@ -93,11 +110,13 @@ run()
 
 # Runs are serial: two GNUstep apps on separate Xvfb displays stall each other.
 for s in $SCALES; do
-  for mode in full quick; do
-    q=0; [ $mode = quick ] && q=1
-    run "A_${mode}_s$s" "$WORK/A" "$s" $q
-    run "A2_${mode}_s$s" "$WORK/A" "$s" $q
-    run "B_${mode}_s$s" "$REPO" "$s" $q
+  for deco in $DECOS; do
+    for mode in full quick; do
+      q=0; [ $mode = quick ] && q=1
+      run "A_${deco}_${mode}_s$s" "$WORK/A" "$s" $q $deco
+      run "A2_${deco}_${mode}_s$s" "$WORK/A" "$s" $q $deco
+      run "B_${deco}_${mode}_s$s" "$REPO" "$s" $q $deco
+    done
   done
 done
 
@@ -112,32 +131,35 @@ REPORT="$OUT/RESULTS.md"
 {
   echo "# Eau A/B pixel test"
   echo
-  echo "A = \`$REF\` ($(git -C "$WORK/A" rev-parse --short HEAD)), B = working tree ($(git -C "$REPO" rev-parse --short HEAD)$(git -C "$REPO" diff --quiet || echo ', modified')). Scales: $SCALES."
+  echo "A = \`$REF\` ($(git -C "$WORK/A" rev-parse --short HEAD)), B = working tree ($(git -C "$REPO" rev-parse --short HEAD)$(git -C "$REPO" diff --quiet || echo ', modified')). Scales: $SCALES. Decorations: $DECOS."
   echo
-  echo "| mode | scale | image | A vs A (noise) | A vs B |"
-  echo "|---|---|---|---|---|"
+  echo "| deco | mode | scale | image | A vs A (noise) | A vs B |"
+  echo "|---|---|---|---|---|---|"
 } > "$REPORT"
 
 deviations=0
 noisy=0
 for s in $SCALES; do
-  for mode in full quick; do
-    A="$OUT/runs/A_${mode}_s$s" A2="$OUT/runs/A2_${mode}_s$s" B="$OUT/runs/B_${mode}_s$s"
-    for f in "$A"/*.png; do
-      [ -f "$f" ] || continue
-      n=$(basename "$f" .png)
-      d="$OUT/diff/${mode}_s${s}_$n"
-      noise=$(ae "$f" "$A2/$n.png" /dev/null)
-      diff=$(ae "$f" "$B/$n.png" "$d-diff.png")
-      if [ "$diff" = 0 ]; then
-        rm -f "$d-diff.png"
-      else
-        deviations=$((deviations + 1))
-        [ -f "$B/$n.png" ] && montage -label A "$f" -label B "$B/$n.png" -label diff "$d-diff.png" \
-          -tile 3x1 -geometry +4+4 "$d-AB.png" 2>/dev/null && rm -f "$d-diff.png"
-      fi
-      [ "$noise" = 0 ] || noisy=$((noisy + 1))
-      echo "| $mode | $s | $n | $noise | $diff |" >> "$REPORT"
+  for deco in $DECOS; do
+    for mode in full quick; do
+      r="${deco}_${mode}_s$s"
+      A="$OUT/runs/A_$r" A2="$OUT/runs/A2_$r" B="$OUT/runs/B_$r"
+      for f in "$A"/*.png; do
+        [ -f "$f" ] || continue
+        n=$(basename "$f" .png)
+        d="$OUT/diff/${r}_$n"
+        noise=$(ae "$f" "$A2/$n.png" /dev/null)
+        diff=$(ae "$f" "$B/$n.png" "$d-diff.png")
+        if [ "$diff" = 0 ]; then
+          rm -f "$d-diff.png"
+        else
+          deviations=$((deviations + 1))
+          [ -f "$B/$n.png" ] && montage -label A "$f" -label B "$B/$n.png" -label diff "$d-diff.png" \
+            -tile 3x1 -geometry +4+4 "$d-AB.png" 2>/dev/null && rm -f "$d-diff.png"
+        fi
+        [ "$noise" = 0 ] || noisy=$((noisy + 1))
+        echo "| $deco | $mode | $s | $n | $noise | $diff |" >> "$REPORT"
+      done
     done
   done
 done
