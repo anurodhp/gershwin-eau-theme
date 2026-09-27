@@ -236,6 +236,18 @@ static char kGBScrollManagerAssociationKey;
         }
     }
 
+  /* This method runs on every attach of a persistent, reused submenu (the
+     Applications launcher keeps one NSMenu - and with it one NSMenuView and
+     one window - across opens rather than rebuilding it), and the resize
+     above passes display:NO so it never repaints on its own.  Every other
+     place in this class that changes scrollOffset already calls
+     -_updateDisplay for exactly this reason; without it here, the window
+     comes back on screen still showing whatever an earlier open last drew
+     at a different scroll position, and only the rows the user's pointer
+     happens to cross get individually corrected, one at a time, by the
+     ordinary highlight redraw. */
+  [mgr _updateDisplay];
+
   return YES;
 }
 
