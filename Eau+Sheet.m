@@ -10,6 +10,7 @@
 
 #import "Behaviors/GBThemeHooks+Sheet.h"
 #import "Eau.h"
+#import "EauGrowBoxView.h"
 
 /* Aqua sheets glide out in about a fifth of a second: long enough to show
  * where the sheet comes from, short enough not to slow the user down. */
@@ -48,6 +49,13 @@ static const CGFloat kEauSheetTopShadowHeight = 6.0;
   [edge setLineWidth:1.0];
   [[NSColor colorWithCalibratedWhite:0.45 alpha:1.0] set];
   [edge stroke];
+}
+
+/* A sheet has no grip; the one it gets back now is added to a window whose
+ * frame settled while it was a sheet, so nothing will snap it later. */
+- (void)sheetDidEndForWindow:(NSWindow *)sheet
+{
+  [EauGrowBoxView addToSettledWindow: sheet];
 }
 
 @end

@@ -18,4 +18,10 @@
  * window background is already painted, the sheet content is drawn after. */
 - (void)drawSheetBorderInRect:(NSRect)bounds forWindow:(NSWindow *)sheet;
 
+/* The sheet has its own style mask back and is an ordinary window again,
+ * not yet shown on its own.  Anything the theme adds to a window when it is
+ * first shown (a resize grip, ...) is added to a window that has already
+ * been on screen from now on, so the theme may have to set it up here. */
+- (void)sheetDidEndForWindow:(NSWindow *)sheet;
+
 @end

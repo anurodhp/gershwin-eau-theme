@@ -131,6 +131,16 @@ static const NSInteger EauGrowBoxViewTag = 0xEA0B0;
 
 + (void)addToWindow:(NSWindow *)window
 {
+  [self addToWindow: window pixelSized: NO];
+}
+
++ (void)addToSettledWindow:(NSWindow *)window
+{
+  [self addToWindow: window pixelSized: YES];
+}
+
++ (void)addToWindow:(NSWindow *)window pixelSized:(BOOL)pixelSized
+{
   if (!window)
     return;
 
@@ -160,8 +170,11 @@ static const NSInteger EauGrowBoxViewTag = 0xEA0B0;
   /* Whole device pixels, as autoresizing leaves the box once the window
    * frame settles: a box created on an already settled window (a panel
    * shown again after being a sheet) would otherwise draw over fractional
-   * pixels under a scale factor and look different. */
-  if ([contentView window] != nil)
+   * pixels under a scale factor and look different.  Only there: a window
+   * shown for the first time keeps the plain size, which autoresizing
+   * snaps only if the frame still moves - rounding it here as well made
+   * every grip of a window that is already whole pixels one pixel larger. */
+  if (pixelSized)
     {
       NSSize px = [contentView convertSize: NSMakeSize(size, size) toView: nil];
       px.width = ceil(fabs(px.width) - 0.001);

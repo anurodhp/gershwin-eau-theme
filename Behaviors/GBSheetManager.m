@@ -431,6 +431,7 @@ BOOL GBSheetEnd(NSWindow *sheet, NSInteger returnCode)
       [parent setAttachedSheet:nil];
     }
     [sheet gb_sheetSetStyleMask:s->savedStyleMask];
+    [GBThemeIfResponds(@selector(sheetDidEndForWindow:)) sheetDidEndForWindow:sheet];
     [sheet setLevel:s->savedLevel];
     [sheet setHidesOnDeactivate:s->savedHidesOnDeactivate];
     [sSessions removeObjectIdenticalTo:s];

@@ -69,7 +69,7 @@ declared in its own header; without it the bundle uses the fallback shown.
 | `GBThemeHooks+DefaultButton.h` | `-gbDefaultButtonCellChanged:forWindow:` | nothing (no pulsing) |
 | `GBThemeHooks+FocusRing.h` | `-gbKeyboardFocusVisibilityChanged:inWindow:` | nothing |
 | `GBThemeHooks+GWDialog.h` | `-gbLayoutGWDialog:` | GWDialog's own layout |
-| `GBThemeHooks+Sheet.h` | `-sheetAnimationDurationForWindow:`, `-drawSheetBorderInRect:forWindow:` | no animation, dark gray frame |
+| `GBThemeHooks+Sheet.h` | `-sheetAnimationDurationForWindow:`, `-drawSheetBorderInRect:forWindow:`, `-sheetDidEndForWindow:` | no animation, dark gray frame, nothing |
 | `GBThemeHooks+Window.h` | `-gbWindowWillOrderFront:` | nothing |
 
 `+[GBBehaviors playSystemSound:]` is available to themes that trigger a
