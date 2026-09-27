@@ -29,9 +29,12 @@ every deviation. The exit status is the number of images that differ.
   with `-w` (a build of gershwin-windowmanager, `dev` branch) running in the
   same display. `ab-withwm.sh` starts it, waits until it has announced itself
   on the root window (`_NET_SUPPORTING_WM_CHECK`), runs the harness and stops
-  it. It draws its titlebars with A's theme in both A and B runs, and runs
-  without compositing (`-dc`): its fade-ins and translucent menus are still
-  blending when a capture is taken and made two runs of A differ.
+  it. It runs with the same tree's `Eau.theme` (and, via the same private
+  HOME, its behaviors bundle) as the client under test, so a regression in
+  how that tree's Eau draws the window manager's own decorations shows up
+  too - it is not always A's theme. It runs without compositing (`-dc`):
+  its fade-ins and translucent menus are still blending when a capture is
+  taken and made two runs of A differ.
 
 The default is `eau bare`, plus `wm` when `-w` is given. Window frames,
 fractional content sizes and the start-up order all differ between the

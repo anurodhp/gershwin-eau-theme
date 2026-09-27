@@ -101,8 +101,9 @@ build()
 
 git -C "$REPO" worktree add --detach "$WORK/A" "$REF" > /dev/null 2>&1 \
   || { echo "cannot check out $REF" >&2; exit 65; }
-# The window manager draws its titlebars with A's theme on both sides, so
-# its decorations are the same in A and B.
+# In wm mode the window manager itself runs the tree's Eau.theme, so a run
+# of A is decorated by A's theme and a run of B by B's - a regression in how
+# the window manager's own decorations draw would otherwise never show up.
 build "$WORK/A" A
 build "$REPO" B
 build "$HERE" harness
@@ -134,9 +135,15 @@ run()
   fi
   if [ $deco = wm ]; then
     set -- "$HERE/ab-withwm.sh" "$WM" "$dir/wm-log.txt" "$HERE/abharness.app/abharness" "$@"
-    # Without compositing: its fades and translucent menus would still be
-    # blending when a capture is taken, so two runs of A would differ.
-    WM_ARGS="-dc -GSTheme $WORK/A/Eau.theme -GSScaleFactor $scale"
+    # The window manager is a themed GNUstep app itself: it must draw with
+    # the same tree's theme (and load the same tree's behaviors bundle,
+    # through the Library/Bundles symlink already set up above, from the
+    # same private HOME) as the client it is deciding under - otherwise a
+    # regression in how B's Eau draws the window manager's own decorations
+    # would never show up.  Without compositing: its fades and translucent
+    # menus would still be blending when a capture is taken, so two runs of
+    # A would differ.
+    WM_ARGS="-dc -GSTheme $tree/Eau.theme -GSScaleFactor $scale"
   else
     set -- "$HERE/abharness.app/abharness" "$@"
     WM_ARGS=
