@@ -348,8 +348,28 @@ static void s_gb_keyDown(id self, SEL _cmd, NSEvent *event)
       /* ── Escape - close all menus ── */
       case 0x1B:
         {
-          // Post a synthetic left-mouse-up at the front of the queue so
-          // the tracking loop processes it immediately and exits.
+          // libs-gui's _trackWithEvent: decides "execute" vs "cancel" for
+          // a mouse-up from the item under the *real* pointer at that
+          // moment, not from the event we hand it - so a synthetic click
+          // still lands on whatever Escape was pressed over, and used to
+          // run that item's action (launching an app whose menu entry
+          // also owns a submenu). Clear the highlight and close the open
+          // chain ourselves first, the same way the tracking loop closes
+          // everything when a lone modifier key cancels it (its
+          // NSFlagsChanged case): NSMenu's -close recurses into any
+          // deeper attached submenu and clears each ancestor's highlight
+          // as it unwinds, so this reaches every level, not just the one
+          // Escape was pressed on. With nothing left highlighted, the
+          // mouse-up below can no longer be mistaken for a selection.
+          NSMenuView *root = GBGetTrackedMenuView();
+          [menuView setHighlightedItemIndex: -1];
+          [[[root menu] attachedMenu] close];
+
+          // NSFlagsChangedMask is only added to the tracking loop's event
+          // mask for styles we don't use, so a mouse-up is the only event
+          // guaranteed to wake -nextEventMatchingMask: out of its wait;
+          // post one purely to make it notice - it now finds nothing to
+          // execute.
           NSEvent *up = [NSEvent mouseEventWithType: NSLeftMouseUp
                                            location: NSZeroPoint
                                       modifierFlags: 0
