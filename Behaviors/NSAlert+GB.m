@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BSD-2-Clause OR GPL-3.0-or-later
  */
 
+#import "GBSheet.h"
 #import "GBThemeHooks+Alert.h"
 #import <AppKit/AppKit.h>
 #import <dispatch/dispatch.h>
@@ -133,15 +134,23 @@ static char GBAlertRetiredPanelKey;
     else {
       [window center];
     }
-    [NSApp activateIgnoringOtherApps:YES];
-    [window makeKeyAndOrderFront:nil];
+    /* A panel that is about to become a sheet (GBAutoSheet.m) must not be
+     * shown centered first; its modal session shows and focuses it. */
+    GBAutoSheetMarkAlertPanel(window);
+    BOOL asSheet = (GBAutoSheetParentFor(window) != nil);
+    if (!asSheet) {
+      [NSApp activateIgnoringOtherApps:YES];
+      [window makeKeyAndOrderFront:nil];
+    }
 
     id theme = GBThemeIfResponds(@selector(runModalForAlertPanel:result:));
     if (theme == nil || ![theme runModalForAlertPanel:window result:&result]) {
-      [NSApp activateIgnoringOtherApps:YES];
-      [window center];
-      [window orderFrontRegardless];
-      [window makeKeyAndOrderFront:nil];
+      if (!asSheet) {
+        [NSApp activateIgnoringOtherApps:YES];
+        [window center];
+        [window orderFrontRegardless];
+        [window makeKeyAndOrderFront:nil];
+      }
       [NSApp runModalForWindow:window];
       if ([window respondsToSelector:@selector(result)]) {
         result = [(id<GBAlertPanelResult>)window result];

@@ -12,7 +12,8 @@
  * libs-gui asks with a blocking NSRunAlertPanel from -canCloseDocument and
  * the async variants just call it.  Here the async variants put up a sheet
  * on the document window and report from its answer; -canCloseDocument
- * (sync, used on quit) is left alone.
+ * (sync, used on quit) keeps blocking, its question attached to the
+ * document window by GBAutoSheet.m.
  */
 
 #import <AppKit/AppKit.h>
@@ -24,6 +25,7 @@
                     shouldCloseSelector:(SEL)shouldCloseSelector
                             contextInfo:(void *)contextInfo;
 - (BOOL)gb_shouldCloseWindowController:(NSWindowController *)windowController;
+- (BOOL)gb_canCloseDocument;
 @end
 
 @interface NSDocumentController (GBSheet)
@@ -313,6 +315,7 @@ BOOL GBSheetDocumentWindowWillClose(NSWindow *window, id sender)
                  @selector(gb_canCloseDocumentWithDelegate:shouldCloseSelector:contextInfo:));
   GBSheetSwizzle(cls, @selector(shouldCloseWindowController:),
                  @selector(gb_shouldCloseWindowController:));
+  GBSheetSwizzle(cls, @selector(canCloseDocument), @selector(gb_canCloseDocument));
   GBSheetSwizzle([NSDocumentController class],
                  @selector(closeAllDocumentsWithDelegate:didCloseAllSelector:contextInfo:),
                  @selector(gb_closeAllDocumentsWithDelegate:didCloseAllSelector:contextInfo:));
@@ -342,6 +345,22 @@ BOOL GBSheetDocumentWindowWillClose(NSWindow *window, id sender)
                                                     selector:shouldCloseSelector
                                                  contextInfo:contextInfo];
   [request askOnWindow:window];
+}
+
+/* The synchronous check (quit review, libs-gui's close-all loop) asks with
+ * a blocking alert; GBAutoSheet.m shows it on this document's window. */
+- (BOOL)gb_canCloseDocument
+{
+  BOOL result;
+
+  GBAutoSheetPushClosingWindow([self windowForSheet]);
+  @try {
+    result = [self gb_canCloseDocument];
+  }
+  @finally {
+    GBAutoSheetPopClosingWindow();
+  }
+  return result;
 }
 
 - (BOOL)gb_shouldCloseWindowController:(NSWindowController *)windowController

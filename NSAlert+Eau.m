@@ -26,6 +26,21 @@ static NSScrollView *makeScrollViewWithRect(NSRect rect);
 - (void)beep;
 @end
 
+/* Answered by GershwinBehaviors.bundle (GBAutoSheet.m) when present: a
+ * synchronous alert about a window becomes a sheet on it, and must then not
+ * first be shown centered.  Looked up at run time; Eau does not link it. */
+@interface NSObject (EauAutoSheet)
++ (BOOL) willRunModalWindowAsSheet: (NSWindow *)window;
+@end
+
+static BOOL EauAlertWillRunAsSheet(NSWindow *panel)
+{
+  Class behaviors = NSClassFromString(@"GBBehaviors");
+  if ([behaviors respondsToSelector: @selector(willRunModalWindowAsSheet:)])
+    return [behaviors willRunModalWindowAsSheet: panel];
+  return NO;
+}
+
 // Private category to declare swizzled selectors so the compiler knows about them
 @interface EauAlertPanel (Swizzles)
 - (id)eau_initWithoutGModel;
@@ -755,24 +770,22 @@ static void eauSnapScrollTextToDevicePixels(NSScrollView *scroll,
         //       [self frame].origin.x, [self frame].origin.y,
         //       [self frame].size.width, [self frame].size.height);
     
-    // Ensure we're the key window and can handle events
-    [self center];
-    
-        // NSLog(@"[EauTrace] EauAlertPanel runModal: AFTER center frame=%@ OSorigin=(%.0f,%.0f) size=(%.0f,%.0f)",
-        //       NSStringFromRect([self frame]),
-        //       [self frame].origin.x, [self frame].origin.y,
-        //       [self frame].size.width, [self frame].size.height);
-    
     // Float above all other windows (alert takes priority)
     [self setLevel: NSScreenSaverWindowLevel];
 
-    // Raise the window to ensure it gets input focus
-    [NSApp activateIgnoringOtherApps: YES];
-    [self orderFrontRegardless];
-        // NSLog(@"[EauTrace] EauAlertPanel runModal: AFTER orderFrontRegardless frame=%@",
-        //       NSStringFromRect([self frame]));
-    [self makeKeyAndOrderFront: self];
-    
+    /* An alert about to become a sheet is shown by its modal session, in
+     * place; centering and raising it here would flash it up mid-screen. */
+    if (!EauAlertWillRunAsSheet(self))
+    {
+        // Ensure we're the key window and can handle events
+        [self center];
+
+        // Raise the window to ensure it gets input focus
+        [NSApp activateIgnoringOtherApps: YES];
+        [self orderFrontRegardless];
+        [self makeKeyAndOrderFront: self];
+    }
+
     // Make sure the default button has focus for Enter key handling
     if (useControl(defButton))
     {
@@ -1090,7 +1103,10 @@ static void eauSnapScrollTextToDevicePixels(NSScrollView *scroll,
         NSString *msg = messageField ? [messageField stringValue] : @"";
         NSLog(@"Eau: EauAlertPanel shown non-modally — title=\"%@\" message=\"%@\"", ttl, msg);
     }
-    [self center];
+    /* A modal session raises its panel with this; one attached as a sheet
+     * stays where GershwinBehaviors placed it. */
+    if ([self sheetParent] == nil)
+      [self center];
     [super orderFrontRegardless];
 }
 
