@@ -3,11 +3,14 @@
  * SPDX-License-Identifier: BSD-2-Clause OR GPL-3.0-or-later
  *
  *   abinput mousemove X Y click 1 key Tab ...
+ *   abinput waitwm SECONDS
  *
  * Moves the pointer with XWarpPointer because XTest motion is a no-op on
  * Xvfb (clicks then land at the old position and button tracking waits
  * forever for the release); buttons and keys go through XTest, loaded at
- * run time so building needs no libXtst development package. */
+ * run time so building needs no libXtst development package.  waitwm exits
+ * 0 once a window manager has announced itself on the root window
+ * (_NET_SUPPORTING_WM_CHECK, EWMH), or 3 after SECONDS without one. */
 
 #include <X11/Xlib.h>
 #include <dlfcn.h>
@@ -25,6 +28,27 @@ int main(int argc, char **argv)
   if (d == NULL)
     return 1;
   Window root = DefaultRootWindow(d);
+
+  if (argc == 3 && strcmp(argv[1], "waitwm") == 0) {
+    Atom check = XInternAtom(d, "_NET_SUPPORTING_WM_CHECK", False);
+    for (int tries = atoi(argv[2]) * 10; tries >= 0; tries--) {
+      Atom type;
+      int format;
+      unsigned long count, after;
+      unsigned char *data = NULL;
+      if (XGetWindowProperty(d, root, check, 0, 1, False, AnyPropertyType, &type, &format,
+                             &count, &after, &data) == Success && data != NULL) {
+        XFree(data);
+        if (count > 0) {
+          XCloseDisplay(d);
+          return 0;
+        }
+      }
+      usleep(100000);
+    }
+    XCloseDisplay(d);
+    return 3;
+  }
 
   void *xtst = dlopen("libXtst.so.6", RTLD_NOW);
   if (xtst == NULL)

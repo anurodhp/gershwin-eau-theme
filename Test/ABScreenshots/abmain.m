@@ -58,6 +58,76 @@ static void resetSpinners(NSView *v)
     resetSpinners(s);
 }
 
+/* ---- metrics: geometry of every view, for the WM vs no-WM comparison ----
+ * One tab-separated line per item, all rects in device pixels relative to
+ * the window's content view, so window placement and decorations (which a
+ * window manager owns) drop out and only the theme's own layout remains:
+ *   window-key  path  class  kind  x y w h
+ * kind: content (content view size), frame (a view), title (a text cell's
+ * text rect, which fixes where its baseline sits), editor (the field editor
+ * of the control being edited). */
+static void dumpRect(NSMutableString *out, NSString *key, NSString *path, NSString *cls,
+                     NSString *kind, NSRect r, CGFloat k)
+{
+  [out appendFormat: @"%@\t%@\t%@\t%@\t%.2f %.2f %.2f %.2f\n", key, path, cls, kind,
+       r.origin.x * k, r.origin.y * k, r.size.width * k, r.size.height * k];
+}
+
+static void dumpView(NSMutableString *out, NSString *key, NSString *path, NSView *v,
+                     NSView *cv, CGFloat k)
+{
+  NSString *cls = NSStringFromClass([v class]);
+  dumpRect(out, key, path, cls, @"frame", [v convertRect: [v bounds] toView: cv], k);
+  if ([v isKindOfClass: [NSControl class]]
+      && [[(NSControl *)v cell] isKindOfClass: [NSTextFieldCell class]])
+    {
+      NSRect t = [[(NSControl *)v cell] titleRectForBounds: [v bounds]];
+      dumpRect(out, key, path, cls, @"title", [v convertRect: t toView: cv], k);
+      NSText *ed = [(NSControl *)v currentEditor];
+      if (ed != nil)
+        dumpRect(out, key, path, NSStringFromClass([ed class]), @"editor",
+                 [ed convertRect: [ed bounds] toView: cv], k);
+    }
+  NSUInteger i = 0;
+  for (NSView *sv in [v subviews])
+    {
+      /* A field editor is reported through its control above; its clip view
+       * and scroller layout follow from that. */
+      if (![sv isKindOfClass: [NSText class]])
+        dumpView(out, key, [NSString stringWithFormat: @"%@.%lu", path, (unsigned long)i],
+                 sv, cv, k);
+      i++;
+    }
+}
+
+static void dumpMetrics(NSString *name)
+{
+  NSMutableString *out = [NSMutableString string];
+  NSMutableDictionary *seen = [NSMutableDictionary dictionary];
+  for (NSWindow *w in [NSApp windows])
+    {
+      NSView *cv = [w contentView];
+      if (![w isVisible] || cv == nil)
+        continue;
+      /* Windows of one class and title (menu panels) are told apart by size:
+       * their order in -windows differs from run to run. */
+      NSSize size = [cv bounds].size;
+      NSString *base = [NSString stringWithFormat: @"%@:%@:%.0fx%.0f", NSStringFromClass([w class]),
+                                 [[w title] stringByReplacingOccurrencesOfString: @"\t" withString: @" "],
+                                 size.width, size.height];
+      NSUInteger n = [[seen objectForKey: base] unsignedIntegerValue];
+      [seen setObject: @(n + 1) forKey: base];
+      NSString *key = [NSString stringWithFormat: @"%@#%lu", base, (unsigned long)n];
+      /* Device pixels per point. */
+      CGFloat k = [cv convertSize: NSMakeSize(1, 1) toView: nil].width;
+      dumpRect(out, key, @"-", NSStringFromClass([cv class]), @"content", [cv bounds], k);
+      dumpView(out, key, @"0", cv, cv, k);
+    }
+  [out writeToFile: [outDir stringByAppendingPathComponent:
+                              [name stringByAppendingPathExtension: @"metrics"]]
+        atomically: YES encoding: NSUTF8StringEncoding error: NULL];
+}
+
 @interface ABDriver : NSObject
 @property (strong) id appDelegate;
 @property (strong) EauShowcaseWindowController *showcase;
@@ -134,6 +204,7 @@ static NSArray *allModes(void)
       }
   [log_ addObject: info];
   fprintf(stderr, "AB CAP %s\n", [info UTF8String]);
+  dumpMetrics(name);
 }
 
 - (void)m_saveWindow: (NSArray *)args
