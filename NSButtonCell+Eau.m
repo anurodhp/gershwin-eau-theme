@@ -120,6 +120,19 @@
 }
 @end
 
+/* The images a switch or a radio button is drawn with, by the names AppKit
+ * and the theme give them. */
+static BOOL EAUIsSwitchOrRadioImage(NSImage *image)
+{
+  NSString *name = [image name];
+  if (name == nil)
+    return NO;
+  return [name hasPrefix: @"GSSwitch"] || [name hasPrefix: @"NSSwitch"]
+    || [name hasPrefix: @"NSHighlightedSwitch"]
+    || [name hasPrefix: @"GSRadio"] || [name hasPrefix: @"NSRadio"]
+    || [name hasPrefix: @"NSHighlightedRadio"];
+}
+
 @implementation NSButtonCell(EauTheme)
 
 /* Per-cell flags.  These used to be global sets of raw cell pointers, which
@@ -416,6 +429,27 @@ static const void *kEAUPulsingKey = &kEAUPulsingKey;
     [self setImagePosition: oldPos];
 
   }
+
+  /* A disabled switch or radio button drew its box and its mark in full
+   * colour with only the title beside them greyed.  AppKit draws a cell's
+   * image at half strength when the cell is disabled and its image dims when
+   * disabled, but -setButtonType: turns that flag off for NSSwitchButton and
+   * NSRadioButton, so their images are never dimmed.  So the image is washed
+   * afterwards with the window's own background at half strength, which
+   * greys the box and the mark together, the way the title is greyed. */
+  if (![self isEnabled] && [self imagePosition] != NSNoImage
+      && EAUIsSwitchOrRadioImage([self image]))
+    {
+      NSRect imageRect = [self imageRectForBounds: cellFrame];
+      NSColor *wash = [[[NSColor windowBackgroundColor]
+                         colorUsingColorSpaceName: NSCalibratedRGBColorSpace]
+                        colorWithAlphaComponent: 0.55];
+      if (wash != nil && !NSIsEmptyRect(imageRect))
+        {
+          [wash set];
+          NSRectFillUsingOperation(imageRect, NSCompositeSourceOver);
+        }
+    }
 }
 
 // Ensure the cell is never narrower than its title text plus bezel padding,
