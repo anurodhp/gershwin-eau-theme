@@ -280,6 +280,28 @@ _eau_symbolizeMarks(NSString *text)
   return m;
 }
 
+/* Was a local block stored in a __strong variable; ARC then copies it to the
+   heap and objc_release()s a Block, which this port's libobjc cannot do
+   (block isa symbols are zero data, not classes), so it is a function. */
+static void
+_eau_reflow(NSTextField *tf, CGFloat cw)
+{
+  if (!tf || NSWidth([tf frame]) <= cw) return;
+  // GNUstep sizeToFit ignores the frame width for wrapping fields,
+  // so measure the wrapped height explicitly.
+  NSDictionary *attrs = [NSDictionary dictionaryWithObject: [tf font]
+                                                    forKey: NSFontAttributeName];
+  NSRect nr = [[tf stringValue] boundingRectWithSize: NSMakeSize(cw, 10000)
+                                             options: NSStringDrawingUsesLineFragmentOrigin
+                                          attributes: attrs];
+  NSRect f = [tf frame];
+  f.size.width = cw;
+  f.size.height = NSHeight(nr);
+  [tf setFrame: f];
+  [[tf cell] setWraps: YES];
+  [[tf cell] setScrollable: NO];
+}
+
 // ---------------------------------------------------------------------------
 // URL button - shows pointing-hand cursor on hover, no highlight
 // ---------------------------------------------------------------------------
@@ -674,26 +696,10 @@ static char kEauAppNameKey;
   // of overflowing the window.
   {
     CGFloat cw = 288.0;
-    void (^reflow)(NSTextField *) = ^(NSTextField *tf) {
-      if (!tf || NSWidth([tf frame]) <= cw) return;
-      // GNUstep sizeToFit ignores the frame width for wrapping fields,
-      // so measure the wrapped height explicitly.
-      NSDictionary *attrs = [NSDictionary dictionaryWithObject: [tf font]
-                                                        forKey: NSFontAttributeName];
-      NSRect nr = [[tf stringValue] boundingRectWithSize: NSMakeSize(cw, 10000)
-                                                 options: NSStringDrawingUsesLineFragmentOrigin
-                                              attributes: attrs];
-      NSRect f = [tf frame];
-      f.size.width = cw;
-      f.size.height = NSHeight(nr);
-      [tf setFrame: f];
-      [[tf cell] setWraps: YES];
-      [[tf cell] setScrollable: NO];
-    };
-    reflow(descriptionLabel);
-    reflow(versionLabel);
-    reflow(copyrightLabel);
-    reflow(copyrightDescriptionLabel);
+    _eau_reflow(descriptionLabel, cw);
+    _eau_reflow(versionLabel, cw);
+    _eau_reflow(copyrightLabel, cw);
+    _eau_reflow(copyrightDescriptionLabel, cw);
     // Re-measure heights after reflow
     descH = descriptionLabel ? NSHeight([descriptionLabel frame]) : 0;
     verH = NSHeight([versionLabel frame]);

@@ -71,7 +71,13 @@ Eau_OBJC_FILES = \
 		GSDisplayServer+Eau.m
 
 ADDITIONAL_TOOL_LIBS =
-ADDITIONAL_OBJCFLAGS += -fobjc-arc -fobjc-arc-exceptions
+# -O2 is load-bearing on this port: at -O0 ARC emits objc_retain/objc_storeStrong on
+# global blocks (every dispatch_once(&t, ^{...})), and objc_retain() sends -retain to
+# the block, whose isa (_NSConcreteGlobalBlock, zero-filled data in libsystem_blocks)
+# is not a class here: SIGSEGV in objc_msgSend in the first +load. -O2 drops them.
+# -fno-builtin-sin/cos: -O2 would fuse sin+cos into __sincos_stret, which this
+# port's libsystem_m does not export.
+ADDITIONAL_OBJCFLAGS += -fobjc-arc -fobjc-arc-exceptions -O2 -fno-builtin-sin -fno-builtin-cos -fno-builtin-sinf -fno-builtin-cosf
 ADDITIONAL_LDFLAGS += -lX11
 $(BUNDLE_NAME)_RESOURCE_FILES = \
 	./Resources/ThemeIcon.png\
