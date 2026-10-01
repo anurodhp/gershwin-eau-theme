@@ -243,35 +243,41 @@ static NSImage *EauImageByShiftingHue(NSImage *image, CGFloat targetHue,
 static NSString *
 _eau_symbolizeMarks(NSString *text)
 {
+  /* No NSRegularExpression: this port's gnustep-base is built --disable-icu
+     (build_gnustep_base.sh), where the class has no methods. The same
+     replacements are done with plain string search. */
   if ([text length] == 0)
     return text;
 
-  static NSRegularExpression *copyrightRe = nil;
-  static NSRegularExpression *cRe = nil;
-  static NSRegularExpression *tmRe = nil;
+  NSMutableString *m = [text mutableCopy];
+  NSStringCompareOptions ci = NSCaseInsensitiveSearch;
+  NSRange r;
 
-  if (copyrightRe == nil)
+  // "Copyright" + optional whitespace + "(c)" -> the symbol alone.
+  NSRange from = NSMakeRange(0, [m length]);
+  while ((r = [m rangeOfString: @"Copyright" options: ci range: from]).location != NSNotFound)
     {
-      copyrightRe = [NSRegularExpression regularExpressionWithPattern:
-        @"Copyright\\s*\\((c|C)\\)"
-        options: NSRegularExpressionCaseInsensitive
-        error: NULL];
-      cRe = [NSRegularExpression regularExpressionWithPattern:
-        @"\\((c|C)\\)" options: 0 error: NULL];
-      tmRe = [NSRegularExpression regularExpressionWithPattern:
-        @"\\((t|T)(m|M)\\)" options: 0 error: NULL];
+      NSUInteger i = NSMaxRange(r);
+      while (i < [m length]
+        && [[NSCharacterSet whitespaceAndNewlineCharacterSet]
+             characterIsMember: [m characterAtIndex: i]])
+        i++;
+      if (i + 3 <= [m length]
+        && [[m substringWithRange: NSMakeRange(i, 3)]
+             caseInsensitiveCompare: @"(c)"] == NSOrderedSame)
+        {
+          [m replaceCharactersInRange: NSMakeRange(r.location, i + 3 - r.location)
+                           withString: @"\u00A9"];
+          from = NSMakeRange(r.location + 1, [m length] - r.location - 1);
+        }
+      else
+        from = NSMakeRange(NSMaxRange(r), [m length] - NSMaxRange(r));
     }
-
-  text = [copyrightRe stringByReplacingMatchesInString: text
-    options: 0 range: NSMakeRange(0, [text length])
-    withTemplate: @"\u00A9"];
-  text = [cRe stringByReplacingMatchesInString: text
-    options: 0 range: NSMakeRange(0, [text length])
-    withTemplate: @"\u00A9"];
-  text = [tmRe stringByReplacingMatchesInString: text
-    options: 0 range: NSMakeRange(0, [text length])
-    withTemplate: @"\u2122"];
-  return text;
+  [m replaceOccurrencesOfString: @"(c)" withString: @"\u00A9" options: ci
+                          range: NSMakeRange(0, [m length])];
+  [m replaceOccurrencesOfString: @"(tm)" withString: @"\u2122" options: ci
+                          range: NSMakeRange(0, [m length])];
+  return m;
 }
 
 // ---------------------------------------------------------------------------

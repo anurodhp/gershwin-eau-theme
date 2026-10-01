@@ -3,20 +3,25 @@
 #import "Eau.h"
 #import "AppearanceMetrics.h"
 
-@interface GWDialog : NSWindow
-@end
-
-@interface GWDialogView : NSView
+/* GWDialog and GWDialogView live in the GWorkspace application, not in a
+   library, so this bundle cannot reference their class symbols at link time
+   (Mach-O two-level namespace, no flat lookup under dyld). They are looked
+   up by name at load time and the eau_* methods are added to them with
+   class_addMethod, from the helper classes at the end of this file. */
+@class GWDialog;
+@interface NSObject (EauGWDialogDecl)
+- (void)eau_drawRect:(NSRect)rect;
 @end
 
 @interface NSWindow (EauDialogServices)
 - (id)eau_validRequestorForSendType:(NSString *)sendType returnType:(NSString *)returnType;
 @end
 
-@interface GWDialog (EauInit)
+@interface NSWindow (EauGWDialogDecl)
 - (id)eau_initWithTitle: (NSString *)title
           editText: (NSString *)eText
         switchTitle: (NSString *)swTitle __attribute__((objc_method_family(init)));
+- (NSModalResponse)eau_runModal;
 @end
 
 
@@ -32,7 +37,7 @@ static id EAUGetIvarObject(id obj, const char *name)
 }
 
 // Apply AppearanceMetrics layout and Mac-like dialog behavior for GWDialog.
-static void EAULayoutGWDialog(GWDialog *dialog)
+static void EAULayoutGWDialog(NSWindow *dialog)
 {
   NSView *dialogView = (NSView *)EAUGetIvarObject(dialog, "dialogView");
   NSTextField *titleField = (NSTextField *)EAUGetIvarObject(dialog, "titleField");
@@ -232,7 +237,11 @@ static void EAULayoutGWDialog(GWDialog *dialog)
  * GWDialog windows specifically DO NOT get a delegate set in NSWindow+Eau.m
  * eau_setDefaultButtonCell(). This is intentional to avoid field editor issues.
  * The animation controller still works via NSNotificationCenter.
- */@implementation GWDialog (Eau)
+ */
+@interface EauGWDialogMethods : NSWindow
+@end
+
+@implementation EauGWDialogMethods
 
 + (void)load
 {
@@ -241,6 +250,13 @@ static void EAULayoutGWDialog(GWDialog *dialog)
     {
       return;
     }
+
+  class_addMethod(dialogClass, @selector(eau_initWithTitle:editText:switchTitle:),
+    class_getMethodImplementation(self, @selector(eau_initWithTitle:editText:switchTitle:)),
+    method_getTypeEncoding(class_getInstanceMethod(self, @selector(eau_initWithTitle:editText:switchTitle:))));
+  class_addMethod(dialogClass, @selector(eau_runModal),
+    class_getMethodImplementation(self, @selector(eau_runModal)),
+    method_getTypeEncoding(class_getInstanceMethod(self, @selector(eau_runModal))));
 
   Method originalInit = class_getInstanceMethod(dialogClass,
                                                 @selector(initWithTitle:editText:switchTitle:));
@@ -293,7 +309,7 @@ static void EAULayoutGWDialog(GWDialog *dialog)
   if (dialog != nil)
     {
       NSDebugLog(@"EauDialog: Original init completed, applying Eau layout and focus setup");
-      EAULayoutGWDialog((GWDialog *)dialog);
+      EAULayoutGWDialog((NSWindow *)dialog);
       NSDebugLog(@"EauDialog: Initialization complete for dialog %p", dialog);
     }
   return dialog;
@@ -359,7 +375,10 @@ static void EAULayoutGWDialog(GWDialog *dialog)
 
 @end
 
-@implementation GWDialogView (Eau)
+@interface EauGWDialogViewMethods : NSView
+@end
+
+@implementation EauGWDialogViewMethods
 
 + (void)load
 {
@@ -369,6 +388,9 @@ static void EAULayoutGWDialog(GWDialog *dialog)
       return;
     }
 
+  class_addMethod(viewClass, @selector(eau_drawRect:),
+    class_getMethodImplementation(self, @selector(eau_drawRect:)),
+    method_getTypeEncoding(class_getInstanceMethod(self, @selector(eau_drawRect:))));
   Method originalDraw = class_getInstanceMethod(viewClass, @selector(drawRect:));
   Method eauDraw = class_getInstanceMethod(viewClass, @selector(eau_drawRect:));
   if (originalDraw && eauDraw)
