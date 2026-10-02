@@ -22,10 +22,11 @@ BOOL EauTitleBarButtonStyleIsOrb(void)
 
 #pragma mark - Geometry Queries
 
-- (CGFloat)titlebarHeight
-{
-    return METRICS_TITLEBAR_HEIGHT_PX;
-}
+/* -titlebarHeight lives in Eau+WindowDecoration.m, returning float as
+ * GSTheme.h:1232 declares it. A second definition returning CGFloat (double)
+ * here raced it on the class; on objc4 this one won, and callers reading the
+ * float in s0 got the low word of the double: 0, so no titlebar (iokit port).
+ */
 
 - (NSRect)closeButtonRectForTitlebarWidth:(CGFloat)width
 {

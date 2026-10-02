@@ -11,7 +11,6 @@ BOOL EauTitleBarButtonStyleIsOrb(void);
 @interface Eau (TitleBarButtons)
 
 // Geometry queries for window manager
-- (CGFloat)titlebarHeight;
 - (NSRect)closeButtonRectForTitlebarWidth:(CGFloat)width;
 - (NSRect)minimizeButtonRectForTitlebarWidth:(CGFloat)width;
 - (NSRect)maximizeButtonRectForTitlebarWidth:(CGFloat)width;
