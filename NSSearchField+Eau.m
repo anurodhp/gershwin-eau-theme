@@ -21,8 +21,19 @@
       {
         SEL swizSel = @selector(eau_keyDown:);
         Method swizm = class_getInstanceMethod(searchCls, swizSel);
+        /* NSSearchField does not implement -keyDown: itself: km is the one it inherits (NSControl's/NSResponder's),
+           and exchanging that would put eau_keyDown:'s body into every control's -keyDown:. NSButton's own
+           eau_keyDown: (NSButton+Eau.m) then answers that body's [self eau_keyDown:] with NSButton's -keyDown:, which
+           calls super again: endless recursion, a stack overflow on any key an alert button does not take
+           (Backspace, a letter). Add the method to NSSearchField instead, and point its eau_keyDown: at the
+           inherited one; exchange only if NSSearchField ever has its own. */
         if (swizm)
-          method_exchangeImplementations(km, swizm);
+          {
+            if (class_addMethod(searchCls, keySel, method_getImplementation(swizm), method_getTypeEncoding(swizm)))
+              class_replaceMethod(searchCls, swizSel, method_getImplementation(km), method_getTypeEncoding(km));
+            else
+              method_exchangeImplementations(km, swizm);
+          }
       }
   });
 }
